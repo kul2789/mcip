@@ -199,7 +199,7 @@ export function courierMessage(body: unknown, fallback: string): string {
   const root = asRecord(body);
   if (!root) return fallback;
   const errors = root.errorResponse ?? root.failureResponse;
-  const firstError = Array.isArray(errors) && asRecord(errors[0]);
+  const firstError = Array.isArray(errors) ? asRecord(errors[0]) : null;
   const msg = firstString(
     root.message,
     root.error,
