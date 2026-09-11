@@ -1,0 +1,103 @@
+{
+  "info": {
+    "name": "MCIP Unified Courier API",
+    "description": "Courier-agnostic logistics API. Use courier_partner=mock offline, urbanebolt against UAT.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "orderId", "value": "ORD-1001" },
+    { "key": "batchId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "List couriers",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/couriers"
+      }
+    },
+    {
+      "name": "Create order (mock)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": \"ORD-1001\",\n  \"courier_partner\": \"mock\",\n  \"payment_mode\": \"PREPAID\",\n  \"pickup\": {\n    \"name\": \"Warehouse A\",\n    \"phone\": \"9876543210\",\n    \"address_line1\": \"12 MG Road\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"KA\",\n    \"pincode\": \"560001\",\n    \"country\": \"IN\"\n  },\n  \"delivery\": {\n    \"name\": \"Rahul Sharma\",\n    \"phone\": \"9123456780\",\n    \"address_line1\": \"45 Park Street\",\n    \"city\": \"Kolkata\",\n    \"state\": \"WB\",\n    \"pincode\": \"700016\",\n    \"country\": \"IN\"\n  },\n  \"package\": {\n    \"weight_grams\": 500,\n    \"length_cm\": 10,\n    \"width_cm\": 8,\n    \"height_cm\": 4,\n    \"items\": [{ \"sku\": \"SKU-1\", \"name\": \"T-shirt\", \"qty\": 1, \"price\": 499 }]\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Create order (urbanebolt)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": \"ORD-UB-1001\",\n  \"courier_partner\": \"urbanebolt\",\n  \"payment_mode\": \"COD\",\n  \"cod_amount\": 199,\n  \"service_type\": \"NDD\",\n  \"pickup\": {\n    \"name\": \"Warehouse A\",\n    \"phone\": \"9876543210\",\n    \"email\": \"wh@example.com\",\n    \"address_line1\": \"12 MG Road\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"KA\",\n    \"pincode\": \"122001\",\n    \"country\": \"IN\"\n  },\n  \"delivery\": {\n    \"name\": \"Rahul Sharma\",\n    \"phone\": \"9123456780\",\n    \"address_line1\": \"45 Park Street\",\n    \"city\": \"Gurugram\",\n    \"state\": \"HR\",\n    \"pincode\": \"122017\",\n    \"country\": \"IN\"\n  },\n  \"package\": {\n    \"weight_grams\": 500,\n    \"length_cm\": 10,\n    \"width_cm\": 8,\n    \"height_cm\": 4,\n    \"items\": [{ \"sku\": \"SKU-1\", \"name\": \"Books\", \"qty\": 1, \"price\": 199 }]\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Track order",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/orders/{{orderId}}/track"
+      }
+    },
+    {
+      "name": "Cancel order",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/orders/{{orderId}}/cancel",
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"reason\": \"Customer requested cancellation\" }"
+        }
+      }
+    },
+    {
+      "name": "Bulk create",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.batch_id) {",
+              "  pm.collectionVariables.set('batchId', json.data.batch_id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/orders/bulk",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orders\": [\n    {\n      \"order_id\": \"ORD-B-1\",\n      \"courier_partner\": \"mock\",\n      \"payment_mode\": \"PREPAID\",\n      \"pickup\": { \"name\": \"Warehouse A\", \"phone\": \"9876543210\", \"address_line1\": \"12 MG Road\", \"city\": \"Bengaluru\", \"state\": \"KA\", \"pincode\": \"560001\", \"country\": \"IN\" },\n      \"delivery\": { \"name\": \"Rahul\", \"phone\": \"9123456780\", \"address_line1\": \"45 Park Street\", \"city\": \"Kolkata\", \"state\": \"WB\", \"pincode\": \"700016\", \"country\": \"IN\" },\n      \"package\": { \"weight_grams\": 500, \"length_cm\": 10, \"width_cm\": 8, \"height_cm\": 4, \"items\": [{ \"sku\": \"SKU-1\", \"name\": \"T-shirt\", \"qty\": 1, \"price\": 499 }] }\n    },\n    {\n      \"order_id\": \"ORD-B-2\",\n      \"courier_partner\": \"mock\",\n      \"payment_mode\": \"PREPAID\",\n      \"pickup\": { \"name\": \"Warehouse A\", \"phone\": \"9876543210\", \"address_line1\": \"12 MG Road\", \"city\": \"Bengaluru\", \"state\": \"KA\", \"pincode\": \"560001\", \"country\": \"IN\" },\n      \"delivery\": { \"name\": \"Rahul\", \"phone\": \"9123456780\", \"address_line1\": \"45 Park Street\", \"city\": \"Kolkata\", \"state\": \"WB\", \"pincode\": \"000000\", \"country\": \"IN\" },\n      \"package\": { \"weight_grams\": 500, \"length_cm\": 10, \"width_cm\": 8, \"height_cm\": 4, \"items\": [{ \"sku\": \"SKU-1\", \"name\": \"T-shirt\", \"qty\": 1, \"price\": 499 }] }\n    }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Get bulk batch",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/batches/{{batchId}}"
+      }
+    }
+  ]
+}
