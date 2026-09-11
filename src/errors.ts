@@ -1,4 +1,5 @@
 export type ErrorCode =
+  | "UNAUTHORIZED"
   | "VALIDATION_ERROR"
   | "UNSUPPORTED_COURIER"
   | "ORDER_NOT_FOUND"
@@ -31,6 +32,10 @@ export class AppError extends Error {
     this.httpStatus = httpStatus;
     this.details = details;
   }
+}
+
+export function unauthorized(message = "Invalid or missing API key"): AppError {
+  return new AppError("UNAUTHORIZED", message, 401);
 }
 
 export function validationError(details: FieldError[]): AppError {

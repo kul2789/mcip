@@ -7,9 +7,9 @@ Internal systems (OMS, frontend) must talk to many courier partners through **on
 ## Pattern: Strategy + Adapter + Registry
 
 ```
-HTTP controllers  →  OrderService  →  CourierRegistry.get(partner)  →  CourierPort
-                                                                  ├─ UrbaneBoltAdapter
-                                                                  └─ MockCourierAdapter
+HTTP  →  X-Api-Key (if MCIP_API_KEY set)  →  controllers  →  OrderService  →  CourierRegistry.get(partner)
+                                                                                              ├─ UrbaneBoltAdapter
+                                                                                              └─ MockCourierAdapter
 ```
 
 - **`CourierPort`** is the strategy contract: `createShipment`, `track`, `cancel`.
@@ -25,6 +25,7 @@ The assignment needs a visible boundary, not a DI container. Express + a 20-line
 
 ## Request flow (create)
 
+0. If `MCIP_API_KEY` is set, require header `X-Api-Key` (timing-safe compare). Miss/mismatch → `401 UNAUTHORIZED`. Empty env skips this step. `/health` and `/api/docs` are never gated. This authenticates **MCIP consumers** (OMS); UrbaneBolt still uses its own token inside the adapter.
 1. Zod validates the **normalized** body (`order_id`, `courier_partner`, pickup/delivery/package). Field errors → HTTP 400.
 2. Registry resolves the adapter (or 400 `UNSUPPORTED_COURIER`).
 3. Insert `orders` row. Unique `order_id` → if duplicate, return the existing shipment (`200` + `idempotent_replay`).
@@ -62,6 +63,7 @@ Single envelope for every endpoint:
 
 | Code | HTTP |
 |---|---|
+| `UNAUTHORIZED` | 401 |
 | `VALIDATION_ERROR` | 400 |
 | `UNSUPPORTED_COURIER` | 400 |
 | `ORDER_NOT_FOUND` | 404 |
@@ -71,10 +73,30 @@ Single envelope for every endpoint:
 
 Logs always include `order_id`, `courier_partner`, `request_id`, `error_type`, and stack where useful.
 
+## Tests
+
+`npm test` runs **24 Vitest cases** (in-memory repo + MockCourier + mocked `fetch`). They do not need MySQL, `.env`, or UAT.
+
+Covered: unified create/track/cancel, idempotent `order_id`, unsupported courier, courier rejection mapped to `422`, bulk `202` with partial success, registry, UrbaneBolt payload/AWB mapping, HTTP retry on timeout/5xx, optional `X-Api-Key` (off when unset; 401 missing/wrong; success with matching header; health/docs stay open).
+
+Live UAT is a manual/demo path (`https://mcip.kavyaretail.in/api/docs` with `courier_partner: "urbanebolt"`).
+
+**GitHub Actions was not included.** The brief’s deliverables were GitHub + README + design, not a pipeline. Tests need no MySQL, secrets, or UAT, so `npm test` on a clone is the review path. A workflow that only runs `npm ci && npm test` would not have changed the design; it was skipped to keep the 2-day scope on the integration platform. It is the first mechanical add-on after submission.
+
 ## Config
 
-API keys, base URLs, timeouts, retry counts, bulk concurrency, and UrbaneBolt `customerCode` come from environment variables only.
+Courier credentials, `MCIP_API_KEY`, base URLs, timeouts, retry counts, bulk concurrency, and UrbaneBolt `customerCode` come from environment variables only. `.env` is gitignored.
+
+## Production notes
+
+This assignment run is a single Node process (PM2) + MySQL + nginx TLS. That is enough to demonstrate the contract; it is not a production SLA.
+
+- **Bulk is in-process.** `202` + `batch_id` persist in MySQL, but the worker is `setImmediate` in this process. A restart drops in-flight jobs. The HTTP contract stays the same if Redis/BullMQ (or a MySQL `FOR UPDATE SKIP LOCKED` worker) is swapped in later.
+- **Consumer auth is optional `X-Api-Key`.** Set `MCIP_API_KEY` to require the header on `/api/v1/*`. Empty (local tests, current demo) leaves the API open. This is not UrbaneBolt auth and not per-user JWT. Rate limit is still a proxy concern; outbound courier fan-out is already capped (`BULK_CONCURRENCY`, default 10).
+- **Latency is the courier, not Express.** Create/track/cancel p50 follows UrbaneBolt (typically hundreds of ms to a few seconds). Health and `GET /couriers` are milliseconds. Retries can stretch a dead-courier call toward the timeout budget (~8s × 4 attempts).
+- **Throughput.** Bulk of 100 at concurrency 10 is about `100 / 10 × courier_latency` wall-clock for the job; the client is not blocked. Unbounded `POST /orders` can exceed that cap — production would apply an inbound limit so UAT is not stampeded.
+- **Next steps (not in this repo):** durable queue, proxy rate limit, GitHub Actions wrapping `npm test`, webhook-based tracking instead of pull-on-GET.
 
 ## What we did not build
 
-Label print, NDR, pay-mode change, ePOD — present in UrbaneBolt docs, out of the required subset (auth, create, track, cancel).
+Label print, NDR, pay-mode change, ePOD — present in UrbaneBolt docs, out of the required subset (auth, create, track, cancel). GitHub Actions and load tests were left out of the 2-day scope on purpose (see Tests above for CI).

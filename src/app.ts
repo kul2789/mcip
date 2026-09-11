@@ -6,6 +6,7 @@ import type { OrdersRepository } from "./db/mysqlRepo";
 import { config } from "./config";
 import { pingPool } from "./db/pool";
 import type { Pool } from "mysql2/promise";
+import { requireApiKey } from "./middleware/apiKey";
 import { errorHandler } from "./middleware/errorHandler";
 import { requestId } from "./middleware/requestId";
 import { openApiSpec } from "./openapi";
@@ -17,6 +18,8 @@ export interface AppDeps {
   repo: OrdersRepository;
   registry: CourierRegistry;
   pool?: Pool;
+  /** Override `MCIP_API_KEY`. Empty / omitted disables the check. */
+  apiKey?: string;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -28,6 +31,9 @@ export function createApp(deps: AppDeps): Express {
   app.use(cors());
   app.use(express.json({ limit: "1mb" }));
   app.use(requestId);
+
+  const apiKey = deps.apiKey ?? config.MCIP_API_KEY;
+  app.use("/api/v1", requireApiKey(apiKey));
 
   app.get("/health", async (_req: Request, res: Response) => {
     const mysql = deps.pool ? ((await pingPool(deps.pool)) ? "up" : "down") : "memory";

@@ -4,7 +4,7 @@ export const openApiSpec = {
     title: "MCIP — Multi-Courier Integration Platform",
     version: "1.0.0",
     description:
-      "Courier-agnostic logistics API. Pass courier_partner on write requests. UrbaneBolt and MockCourier are registered adapters.",
+      "Courier-agnostic logistics API. Pass courier_partner on write requests. UrbaneBolt and MockCourier are registered adapters. When MCIP_API_KEY is set, send header X-Api-Key on /api/v1/* (Swagger Authorize). /health and /api/docs stay open.",
   },
   servers: [{ url: "/", description: "Current host" }],
   tags: [
@@ -25,13 +25,15 @@ export const openApiSpec = {
       get: {
         tags: ["Couriers"],
         summary: "List supported courier partners",
-        responses: { "200": { description: "Partner list" } },
+        security: [{ ApiKeyAuth: [] }],
+        responses: { "200": { description: "Partner list" }, "401": { description: "Missing or invalid API key" } },
       },
     },
     "/api/v1/orders": {
       post: {
         tags: ["Orders"],
         summary: "Create a shipment",
+        security: [{ ApiKeyAuth: [] }],
         requestBody: {
           required: true,
           content: { "application/json": { schema: { $ref: "#/components/schemas/CreateOrder" } } },
@@ -40,6 +42,7 @@ export const openApiSpec = {
           "201": { description: "Created" },
           "200": { description: "Idempotent replay" },
           "400": { description: "Validation or unknown courier" },
+          "401": { description: "Missing or invalid API key" },
           "422": { description: "Courier rejected" },
           "502": { description: "Courier unavailable" },
         },
@@ -49,25 +52,36 @@ export const openApiSpec = {
       post: {
         tags: ["Bulk"],
         summary: "Queue up to 100 orders (returns batch_id immediately)",
+        security: [{ ApiKeyAuth: [] }],
         requestBody: {
           required: true,
           content: { "application/json": { schema: { $ref: "#/components/schemas/BulkCreate" } } },
         },
-        responses: { "202": { description: "Accepted" }, "400": { description: "Validation error" } },
+        responses: {
+          "202": { description: "Accepted" },
+          "400": { description: "Validation error" },
+          "401": { description: "Missing or invalid API key" },
+        },
       },
     },
     "/api/v1/orders/{order_id}/track": {
       get: {
         tags: ["Orders"],
         summary: "Track a shipment and append history",
+        security: [{ ApiKeyAuth: [] }],
         parameters: [{ name: "order_id", in: "path", required: true, schema: { type: "string" } }],
-        responses: { "200": { description: "Tracking" }, "404": { description: "Not found" } },
+        responses: {
+          "200": { description: "Tracking" },
+          "401": { description: "Missing or invalid API key" },
+          "404": { description: "Not found" },
+        },
       },
     },
     "/api/v1/orders/{order_id}/cancel": {
       post: {
         tags: ["Orders"],
         summary: "Cancel a shipment",
+        security: [{ ApiKeyAuth: [] }],
         parameters: [{ name: "order_id", in: "path", required: true, schema: { type: "string" } }],
         requestBody: {
           content: {
@@ -84,6 +98,7 @@ export const openApiSpec = {
         },
         responses: {
           "200": { description: "Cancelled" },
+          "401": { description: "Missing or invalid API key" },
           "404": { description: "Not found" },
           "409": { description: "Not allowed" },
         },
@@ -93,12 +108,25 @@ export const openApiSpec = {
       get: {
         tags: ["Bulk"],
         summary: "Poll bulk job with per-order results",
+        security: [{ ApiKeyAuth: [] }],
         parameters: [{ name: "batch_id", in: "path", required: true, schema: { type: "string" } }],
-        responses: { "200": { description: "Batch" }, "404": { description: "Not found" } },
+        responses: {
+          "200": { description: "Batch" },
+          "401": { description: "Missing or invalid API key" },
+          "404": { description: "Not found" },
+        },
       },
     },
   },
   components: {
+    securitySchemes: {
+      ApiKeyAuth: {
+        type: "apiKey",
+        in: "header",
+        name: "X-Api-Key",
+        description: "Required on /api/v1/* when MCIP_API_KEY is set. Ignored when the env var is empty.",
+      },
+    },
     schemas: {
       Address: {
         type: "object",

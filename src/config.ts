@@ -16,6 +16,7 @@ const EnvSchema = z.object({
   HTTP_RETRY_COUNT: z.coerce.number().int().min(0).max(8).default(3),
   HTTP_RETRY_BACKOFF_MS: z.coerce.number().int().min(0).default(300),
   BULK_CONCURRENCY: z.coerce.number().int().positive().max(50).default(10),
+  MCIP_API_KEY: z.string().default(""),
 
   URBANEBOLT_BASE_URL: z.string().url().default("https://uat.urbanebolt.in"),
   URBANEBOLT_USERNAME: z.string().default(""),

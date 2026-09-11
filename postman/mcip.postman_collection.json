@@ -7,8 +7,17 @@
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
     { "key": "orderId", "value": "ORD-1001" },
-    { "key": "batchId", "value": "" }
+    { "key": "batchId", "value": "" },
+    { "key": "apiKey", "value": "" }
   ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "X-Api-Key", "type": "string" },
+      { "key": "value", "value": "{{apiKey}}", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
+    ]
+  },
   "item": [
     {
       "name": "Health",
